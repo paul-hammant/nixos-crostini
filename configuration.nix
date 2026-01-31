@@ -10,6 +10,17 @@
   ...
 }:
 {
+  # Deploy CLAUDE.md for Claude Code context
+  # Place in /etc/nixos (found when working there) and link to user home
+  environment.etc."nixos/CLAUDE.md".source = ./CLAUDE.md;
+
+  # Create ~/.claude/CLAUDE.md for paul (always checked by Claude Code)
+  system.activationScripts.claudemd = ''
+    mkdir -p /home/paul/.claude
+    ln -sf /etc/nixos/CLAUDE.md /home/paul/.claude/CLAUDE.md
+    chown -R paul:users /home/paul/.claude
+  '';
+
   imports = [
     # You can import other NixOS modules here.
     # You can also split up your configuration and import pieces of it here:
@@ -22,17 +33,23 @@
     "flakes"
   ];
 
+  # Allow unfree packages (required for claude-code)
+  nixpkgs.config.allowUnfree = true;
+
   # Search for additional packages here: https://search.nixos.org/packages
   environment.systemPackages = with pkgs; [
     neovim
     git
+    nodejs
+    gemini-cli
+    go
+    ripgrep
+    claude-code
   ];
 
   # Configure your system-wide user settings (groups, etc), add more users as needed.
   users.users = {
-    # TODO: Replace `aldur` with the username you picked when configuring Linux
-    # in ChromeOS.
-    aldur = {
+    paul = {
       isNormalUser = true;
 
       linger = true;
