@@ -10,30 +10,41 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write # REQUIRED: To create/update the release
 
 jobs:
   nixos-ci:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # - runner: ubuntu-24.04-arm
-          #   arch: arm64
-          - runner: ubuntu-24.04
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
+
       - uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be  # v3.15.1
-      - uses: DeterminateSystems/flake-checker-action@3164002371bc90729c68af0e24d5aacf20d7c9f6  # v12
+      
+      - name: Build Baguette Image
+        run: nix build .#baguette-zimage
 
-      - run: nix flake check
-      - run: nix build .#baguette-zimage
-
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+      - name: Update Latest Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
         with:
-          name: zimage-${{ matrix.arch }}
-          path: result/*.zst
+          tag_name: latest
+          name: Paul's Latest Bunker
+          # Note: Baguette builds usually name the file 'baguette_rootfs.img.zst'
+          files: result/*.zst 
+          overwrite: true
+          make_latest: true
+          body: |
+            Automated Baguette build for **Paul**.
+            
+            **To install on ChromeOS:**
+            ```bash
+            # 1. Download to ChromeOS Downloads
+            curl -L -o ~/Downloads/bunker.tar.zst [https://github.com/paul-hammant/nixos-crostini/releases/latest/download/baguette_rootfs.img.zst](https://github.com/paul-hammant/nixos-crostini/releases/latest/download/baguette_rootfs.img.zst)
+            
+            # 2. Import into ChromeOS
+            vmc import paul-bunker ~/Downloads/bunker.tar.zst
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
