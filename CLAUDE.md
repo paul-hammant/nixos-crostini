@@ -69,13 +69,59 @@ vmc stop baguette
 vmc list
 ```
 
-## Common Tasks
+## Installing Packages
 
-### Install packages
-Edit `configuration.nix`, add to `environment.systemPackages`, then rebuild:
+**When asked to install a package, clarify which persistence level the user wants:**
+
+There are three ways to install packages, each with different persistence:
+
+### 1. Session-only (ephemeral)
+Available immediately but lost on shell exit/re-entry:
 ```bash
-sudo nixos-rebuild switch --flake /etc/nixos#baguette-nixos
+nix-shell -p openjdk
+
+# Or for a more integrated experience:
+nix shell nixpkgs#openjdk
 ```
+**Use when**: Testing, one-off tasks, temporary needs.
+
+### 2. User profile (survives reboot, lost on VM rebuild)
+Persists across shell sessions and reboots, but not if VM is destroyed/recreated:
+```bash
+nix profile install nixpkgs#openjdk
+
+# List installed:
+nix profile list
+
+# Remove:
+nix profile remove openjdk
+```
+**Use when**: User wants a package now without editing config, accepts it won't survive a VM rebuild.
+
+### 3. Declarative (persists into image)
+Add to `configuration.nix`, rebuild, and optionally push to GitHub for image rebuild:
+```bash
+# Edit /etc/nixos/configuration.nix, add to environment.systemPackages:
+#   openjdk
+
+# Apply locally (survives reboots, lost on VM destroy/recreate):
+sudo nixos-rebuild switch --flake /etc/nixos#baguette-nixos
+
+# To persist into the image for future VM creates:
+# 1. Commit and push changes to GitHub fork
+# 2. Wait for GitHub Actions to build new image
+# 3. Download artifact and recreate VM with new image
+```
+**Use when**: Package should be part of the base system permanently.
+
+### Summary Table
+
+| Method | Survives shell exit | Survives reboot | Survives VM rebuild |
+|--------|---------------------|-----------------|---------------------|
+| `nix-shell -p` | No | No | No |
+| `nix profile install` | Yes | Yes | No |
+| `configuration.nix` + local rebuild | Yes | Yes | No |
+| `configuration.nix` + push + new image | Yes | Yes | Yes |
 
 ### Update system
 ```bash
